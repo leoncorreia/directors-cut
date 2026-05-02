@@ -1,0 +1,13 @@
+venv/
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+server/dist
+.env
+npm-debug.log*
+
+# Local MCP config if placed inside the repo (may contain API keys)
+mcp.json
+.mcp.json
+.cursor/mcp.json

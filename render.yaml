@@ -1,0 +1,16 @@
+# Render Blueprint — Seedance proxy API (Express).
+# After deploy: copy the service URL (https://YOUR-SERVICE.onrender.com), then set in Render:
+#   CORS_ORIGINS = https://YOUR-APP.butterbase.dev
+#   SEEDANCE_API_KEY = (secret)
+# Rebuild & redeploy the Butterbase frontend with:
+#   VITE_API_BASE = https://YOUR-SERVICE.onrender.com
+services:
+  - type: web
+    name: directors-cut-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
