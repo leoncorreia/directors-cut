@@ -1,18 +1,8 @@
 import axios, { type AxiosError } from "axios";
 import type { AgentResponse, Revision, ShotPlan } from "../types";
 
-const apiUrl = import.meta.env.VITE_BUTTERBASE_API_URL as string;
-const appId = import.meta.env.VITE_BUTTERBASE_APP_ID as string;
-
-export const BASE = `${apiUrl}/v1/${appId}`;
-const KEY = appId;
-
-const jsonHeaders = { "Content-Type": "application/json" };
-
-const writeHeaders = {
-  ...jsonHeaders,
-  "x-butterbase-key": KEY,
-};
+const apiBase = import.meta.env.VITE_API_BASE?.trim() || "http://localhost:3001";
+export const BASE = `${apiBase}/api/bb`;
 
 type SessionRow = {
   id: string;
@@ -68,7 +58,6 @@ export async function createSession(
         style_dna: styleDNA,
         aspect_ratio: aspectRatio,
       },
-      { headers: writeHeaders },
     );
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.id) {
@@ -105,7 +94,6 @@ export async function createRevision(
         video_url: null,
         status: "generating",
       },
-      { headers: writeHeaders },
     );
     const row = Array.isArray(data) ? data[0] : data;
     if (!row?.id) {
@@ -134,17 +122,17 @@ export async function updateRevision(id: string, patch: Partial<Revision>): Prom
     body.critique = patch.agentResponse.critique;
   }
   if (Object.keys(body).length === 0) return;
-  await axios.patch(`${BASE}/revisions/${id}`, body, { headers: writeHeaders });
+  await axios.patch(`${BASE}/revisions/${id}`, body);
 }
 
 export async function getRevisions(sessionId: string): Promise<Revision[]> {
-  const { data } = await axios.get<RevisionRow[]>(
-    `${BASE}/revisions?session_id=eq.${sessionId}&order=take_number.asc`,
-  );
+  const { data } = await axios.get<RevisionRow[]>(`${BASE}/revisions`, {
+    params: { session_id: sessionId },
+  });
   return data.map(mapRowToRevision);
 }
 
 export async function getSession(sessionId: string): Promise<SessionRow | null> {
-  const { data } = await axios.get<SessionRow[]>(`${BASE}/sessions?id=eq.${sessionId}`);
-  return data[0] ?? null;
+  const { data } = await axios.get<SessionRow | null>(`${BASE}/sessions/${sessionId}`);
+  return data;
 }

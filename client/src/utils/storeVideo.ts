@@ -1,11 +1,5 @@
 import { BASE } from "./butterbase";
 
-const KEY = import.meta.env.VITE_BUTTERBASE_APP_ID as string;
-
-const writeHeaders = {
-  "x-butterbase-key": KEY,
-};
-
 export async function storeVideoToButterbase(videoUrl: string, revisionId: string): Promise<string | null> {
   try {
     const blob = await fetch(videoUrl).then((res) => res.blob());
@@ -15,9 +9,7 @@ export async function storeVideoToButterbase(videoUrl: string, revisionId: strin
       content_type: "video/mp4",
     });
 
-    const uploadUrlRes = await fetch(`${BASE}/storage/upload-url?${uploadParams.toString()}`, {
-      headers: writeHeaders,
-    });
+    const uploadUrlRes = await fetch(`${BASE}/storage/upload-url?${uploadParams.toString()}`);
 
     if (!uploadUrlRes.ok) {
       console.error("[storeVideo] upload-url failed", uploadUrlRes.status);
@@ -48,9 +40,7 @@ export async function storeVideoToButterbase(videoUrl: string, revisionId: strin
       filename: `revision-${revisionId}.mp4`,
     });
 
-    const downloadUrlRes = await fetch(`${BASE}/storage/download-url?${downloadParams.toString()}`, {
-      headers: writeHeaders,
-    });
+    const downloadUrlRes = await fetch(`${BASE}/storage/download-url?${downloadParams.toString()}`);
 
     if (!downloadUrlRes.ok) {
       console.error("[storeVideo] download-url failed", downloadUrlRes.status);

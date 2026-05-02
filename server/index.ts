@@ -18,6 +18,9 @@ const seedanceApiBase = process.env.SEEDANCE_API_BASE ?? "https://api.seedance.a
 const seedanceModel = process.env.SEEDANCE_MODEL ?? "seedance-2.0-text-to-video";
 const seedanceResolution = process.env.SEEDANCE_RESOLUTION ?? "720p";
 const seedanceGenerateAudio = process.env.SEEDANCE_GENERATE_AUDIO !== "false";
+const butterbaseApiUrl = process.env.BUTTERBASE_API_URL ?? process.env.VITE_BUTTERBASE_API_URL ?? "https://api.butterbase.ai";
+const butterbaseAppId = process.env.BUTTERBASE_APP_ID ?? process.env.VITE_BUTTERBASE_APP_ID ?? "";
+const butterbaseKey = process.env.BUTTERBASE_KEY ?? butterbaseAppId;
 
 const normalizeApiBase = (base: string): string => base.replace(/\/$/, "");
 
@@ -57,6 +60,123 @@ app.use((req, _res, next) => {
 
 app.get("/health", (_req, res) => {
   res.status(200).json({ ok: true });
+});
+
+const butterbaseHeaders = (): Record<string, string> => ({
+  "x-butterbase-key": butterbaseKey,
+  "Content-Type": "application/json",
+});
+
+const butterbaseBase = (): string => `${normalizeApiBase(butterbaseApiUrl)}/v1/${butterbaseAppId}`;
+
+const ensureButterbaseConfig = (res: Response): boolean => {
+  if (!butterbaseAppId || !butterbaseKey) {
+    res.status(500).json({ error: "Missing BUTTERBASE_APP_ID/BUTTERBASE_KEY server config" });
+    return false;
+  }
+  return true;
+};
+
+const passthroughError = (res: Response, error: unknown): void => {
+  if (axios.isAxiosError(error) && error.response) {
+    res.status(error.response.status).json(
+      typeof error.response.data === "object" ? error.response.data : { error: String(error.response.data) },
+    );
+    return;
+  }
+  res.status(500).json({ error: error instanceof Error ? error.message : "Unexpected server error" });
+};
+
+app.post("/api/bb/sessions", async (req: Request, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const response = await axios.post(`${butterbaseBase()}/sessions`, req.body, { headers: butterbaseHeaders() });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.post("/api/bb/revisions", async (req: Request, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const response = await axios.post(`${butterbaseBase()}/revisions`, req.body, { headers: butterbaseHeaders() });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.patch("/api/bb/revisions/:id", async (req: Request<{ id: string }>, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const response = await axios.patch(`${butterbaseBase()}/revisions/${encodeURIComponent(req.params.id)}`, req.body, {
+      headers: butterbaseHeaders(),
+    });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.get("/api/bb/revisions", async (req: Request, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const sessionIdRaw = req.query.session_id;
+    const sessionId = typeof sessionIdRaw === "string" ? sessionIdRaw : "";
+    const params = new URLSearchParams();
+    if (sessionId) params.set("session_id", `eq.${sessionId}`);
+    params.set("order", "take_number.asc");
+
+    const response = await axios.get(`${butterbaseBase()}/revisions?${params.toString()}`, {
+      headers: butterbaseHeaders(),
+    });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.get("/api/bb/sessions/:id", async (req: Request<{ id: string }>, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const response = await axios.get(`${butterbaseBase()}/sessions?id=eq.${encodeURIComponent(req.params.id)}`, {
+      headers: butterbaseHeaders(),
+    });
+    const rows = Array.isArray(response.data) ? response.data : [];
+    res.status(200).json(rows[0] ?? null);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.get("/api/bb/storage/upload-url", async (req: Request, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const filename = typeof req.query.filename === "string" ? req.query.filename : "";
+    const contentType = typeof req.query.content_type === "string" ? req.query.content_type : "application/octet-stream";
+    const params = new URLSearchParams({ filename, content_type: contentType });
+    const response = await axios.get(`${butterbaseBase()}/storage/upload-url?${params.toString()}`, {
+      headers: butterbaseHeaders(),
+    });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
+});
+
+app.get("/api/bb/storage/download-url", async (req: Request, res: Response) => {
+  if (!ensureButterbaseConfig(res)) return;
+  try {
+    const filename = typeof req.query.filename === "string" ? req.query.filename : "";
+    const params = new URLSearchParams({ filename });
+    const response = await axios.get(`${butterbaseBase()}/storage/download-url?${params.toString()}`, {
+      headers: butterbaseHeaders(),
+    });
+    res.status(response.status).json(response.data);
+  } catch (error: unknown) {
+    passthroughError(res, error);
+  }
 });
 
 type GenerateBody = {
